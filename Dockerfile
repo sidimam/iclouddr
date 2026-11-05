@@ -12,6 +12,8 @@ RUN apk add --no-cache isync \
  && /opt/pim/venv/bin/python -c "import pyicloud.services.notes, pyicloud.services.reminders" \
  && mbsync --version && /opt/pim/venv/bin/vdirsyncer --version
 COPY pim/ /opt/pim/
+# attesa massima predefinita sulle richieste HTTP del programma originale (vedi sitecustomize.py); il PIM ha il suo ambiente
+COPY sitecustomize.py /usr/local/lib/python3.14/site-packages/sitecustomize.py
 COPY pim-entrypoint.sh /usr/local/bin/pim-entrypoint.sh
 RUN chmod 755 /usr/local/bin/pim-entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/pim-entrypoint.sh"]
