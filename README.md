@@ -32,7 +32,8 @@ Nella cartella montata su `/icloud/pim` (per Simone `/mnt/user/documents/Simone/
 `/config/pim-status.json` (`condivisi`): note (la nota o la sua cartella ha un record `Share`), liste di promemoria (idem) e
 voci di iCloud Drive (`shareID`/`share: FROM_ME`; si scende solo nelle cartelle con `shareCount` > 0, quindi costa pochi
 secondi). Nell'indice delle note la voce ha `"shared": true`, nel JSON della lista `"condivisa": true`. iCloud Dashboard
-li scrive in blu. Ciò che altri condividono con la persona sta nel database condiviso di CloudKit e qui non compare.
+li scrive in blu. Sul Drive compaiono anche le cartelle condivise *con* la persona (`share: TO_ME`); le note e le liste
+condivise da altri stanno nel database condiviso di CloudKit e qui non compaiono.
 
 La cartella `Note` viene sostituita intera solo a giro riuscito; le liste di promemoria cancellate su iCloud spariscono anche qui.
 Le versioni vecchie restano nella copia sul disco USB Elements, che non cancella mai niente. Lo stato dell'ultimo giro è in
