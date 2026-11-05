@@ -85,8 +85,8 @@ def sync_mail(acc, base, log):
             f.write(f"""IMAPAccount a
 Host {host}
 Port {port}
-User {acc["email"]}
-PassCmd "cat {pw}"
+User "{acc["email"]}"
+PassCmd "cat '{pw}'"
 TLSType IMAPS
 Timeout 180
 PipelineDepth 8
@@ -95,8 +95,8 @@ IMAPStore remote
 Account a
 
 MaildirStore local
-Path {dest}/
-Inbox {dest}/INBOX
+Path "{dest}/"
+Inbox "{dest}/INBOX"
 SubFolders Verbatim
 
 Channel c
@@ -107,7 +107,7 @@ Create Near
 Remove None
 Expunge None
 Sync Pull
-SyncState {state}/
+SyncState "{state}/"
 CopyArrivalDate yes
 """)
         os.chmod(cfg, 0o600)
