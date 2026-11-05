@@ -68,9 +68,14 @@ def export_notes(api, dest):
     os.chmod(stage, 0o777)   # mkdtemp crea 0700: con i permessi di Unraid la cartella si apre anche dalle share
     n = api.notes
     index, locked, failed = [], [], []
-    for s in n.iter_all():
-        if getattr(s, "is_deleted", False):
-            continue
+    notes = [x for x in n.iter_all() if not getattr(x, "is_deleted", False)]
+    # Titoli ripetuti nella stessa cartella: l'esportatore li scriverebbe nello stesso file, uno sopra l'altro.
+    # Quelle note prendono subito un nome con l'inizio del loro identificativo.
+    seen_names = {}
+    for x in notes:
+        k = (safe(getattr(x, "folder_name", None), "Note"), safe(getattr(x, "title", None)).lower())
+        seen_names[k] = seen_names.get(k, 0) + 1
+    for s in notes:
         folder = safe(getattr(s, "folder_name", None), "Note")
         title = safe(getattr(s, "title", None))
         entry = {"id": s.id, "title": getattr(s, "title", None), "folder": folder,
@@ -82,9 +87,10 @@ def export_notes(api, dest):
             fdir = os.path.join(stage, folder)
             os.makedirs(fdir, exist_ok=True)
             p = n.export_note(s.id, fdir, export_mode="archival", assets_dir=os.path.join(fdir, "_allegati"))
-            want = os.path.join(fdir, title + ".html")
+            dup = seen_names.get((folder, title.lower()), 0) > 1
+            want = os.path.join(fdir, f"{title} ({s.id[:8]}).html" if dup else title + ".html")
             if os.path.abspath(p) != os.path.abspath(want):
-                if os.path.exists(want):
+                if os.path.exists(want) and not dup:
                     want = os.path.join(fdir, f"{title} ({s.id[:8]}).html")
                 os.replace(p, want)
             entry["file"] = os.path.relpath(want, stage)
