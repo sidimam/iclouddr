@@ -192,8 +192,13 @@ def save_status(st):
         pass
 
 
+FOLDERS = {"icloud": "iCloud", "gmail": "Gmail", "outlook": "Outlook"}
+
+
 def account_dir(acc):
-    label = safe(acc.get("label") or acc.get("type", "Account"), "Account")
+    """Cartella dell'account: quella scelta da iCloud Dashboard (campo folder), altrimenti il nome del servizio
+    (iCloud, Gmail, Outlook), altrimenti l'etichetta. L'account iCloud scrive accanto a Note e Promemoria."""
+    label = safe(acc.get("folder") or FOLDERS.get(acc.get("type")) or acc.get("label") or "Account", "Account")
     if os.path.isdir(PERSON):
         return os.path.join(PERSON, label)
     if acc.get("type") == "icloud":
