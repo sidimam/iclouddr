@@ -6,9 +6,11 @@ FROM ${BASE}
 LABEL org.opencontainers.image.source="https://github.com/sidimam/iclouddr" \
       org.opencontainers.image.description="mandarons/icloud-drive + modulo PIM (note, promemoria) per Unraid"
 # Ambiente Python separato da quello di iclouddr: un aggiornamento dell'uno non rompe le librerie dell'altro.
-RUN python3 -m venv /opt/pim/venv \
- && /opt/pim/venv/bin/pip install --no-cache-dir pyicloud==2026.10.1 \
- && /opt/pim/venv/bin/python -c "import pyicloud.services.notes, pyicloud.services.reminders"
+RUN apk add --no-cache isync \
+ && python3 -m venv /opt/pim/venv \
+ && /opt/pim/venv/bin/pip install --no-cache-dir pyicloud==2026.10.1 vdirsyncer==0.19.3 \
+ && /opt/pim/venv/bin/python -c "import pyicloud.services.notes, pyicloud.services.reminders" \
+ && mbsync --version && /opt/pim/venv/bin/vdirsyncer --version
 COPY pim/ /opt/pim/
 COPY pim-entrypoint.sh /usr/local/bin/pim-entrypoint.sh
 RUN chmod 755 /usr/local/bin/pim-entrypoint.sh

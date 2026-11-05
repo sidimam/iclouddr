@@ -8,7 +8,11 @@ Gira dentro il container iclouddr accanto al programma originale (mandarons/iclo
   Le note protette da password non si possono leggere e vengono solo elencate.
 - Promemoria: CloudKit via pyicloud → <dest>/Promemoria/<lista>.json (tutti i campi) e <lista>.md (da leggere).
 - Stato dell'ultimo giro in /config/pim-status.json (lo legge iCloud Dashboard).
-Variabili: PIM_DEST (default /icloud/pim), PIM_INTERVAL (secondi, default 21600), PIM_ONCE=1 per un solo giro.
+- Account (dalla 0.2): posta, calendario e contatti di iCloud, Gmail, Outlook o altro IMAP, da /config/pim-accounts.json
+  (lo scrive iCloud Dashboard), ognuno in <persona>/<etichetta>/ — vedi accounts_sync.py. Serve il mount /icloud/persona
+  (la cartella della persona, es. /mnt/user/documents/Simone).
+Variabili: PIM_DEST (default /icloud/pim), PIM_INTERVAL (note e promemoria, default 21600 s), PIM_MAIL_INTERVAL (900),
+PIM_DAV_INTERVAL (calendari e contatti, 3600), PIM_ONCE=1 per un solo giro. Il file /config/pim-run-now fa ripartire subito tutto.
 """
 import datetime, json, os, re, shutil, sys, tempfile, time, traceback
 
@@ -17,6 +21,10 @@ CONFIG = os.environ.get("ENV_CONFIG_FILE_PATH", "/config/config.yaml")
 DEST = os.environ.get("PIM_DEST", "/icloud/pim")
 STATUS = os.environ.get("PIM_STATUS", "/config/pim-status.json")
 INTERVAL = int(os.environ.get("PIM_INTERVAL", "21600"))
+MAIL_INTERVAL = int(os.environ.get("PIM_MAIL_INTERVAL", "900"))
+DAV_INTERVAL = int(os.environ.get("PIM_DAV_INTERVAL", "3600"))
+PERSON = os.environ.get("PIM_PERSON", "/icloud/persona")
+RUN_NOW = os.environ.get("PIM_RUN_NOW", "/config/pim-run-now")
 
 
 def log(msg):
@@ -164,10 +172,63 @@ def export_reminders(api, dest):
     return {"liste": len(lists), "promemoria": total}
 
 
+def load_status():
+    try:
+        return json.load(open(STATUS))
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def save_status(st):
+    try:
+        write_atomic(STATUS, json.dumps(st, ensure_ascii=False, indent=1))
+    except Exception:
+        pass
+
+
+def account_dir(acc):
+    label = safe(acc.get("label") or acc.get("type", "Account"), "Account")
+    if os.path.isdir(PERSON):
+        return os.path.join(PERSON, label)
+    if acc.get("type") == "icloud":
+        return DEST   # senza il mount della persona l'account iCloud scrive accanto a note e promemoria
+    raise RuntimeError("manca il mount /icloud/persona (la cartella della persona)")
+
+
+def run_account(acc, what):
+    """what: insieme di "mail", "dav". Aggiorna la voce dell'account in pim-status.json."""
+    import accounts_sync as A
+    st = load_status()
+    rec = st.setdefault("accounts", {}).setdefault(acc["id"], {})
+    rec.update(label=acc.get("label"), type=acc.get("type"), email=acc.get("email"))
+    try:
+        base = account_dir(acc)
+        rec["dir"] = base
+        if "mail" in what and acc.get("mail"):
+            t = time.time(); rec["mail"] = {**A.sync_mail(acc, base, log), "when": time.time(), "seconds": round(time.time() - t), "ok": True}
+            log(f"{acc.get('label')}: posta {rec['mail']}")
+        if "dav" in what and (acc.get("calendar") or acc.get("ics")):
+            t = time.time(); rec["calendar"] = {**A.sync_calendar(acc, base), "when": time.time(), "seconds": round(time.time() - t), "ok": True}
+            log(f"{acc.get('label')}: calendario {rec['calendar']}")
+        if "dav" in what and acc.get("contacts"):
+            t = time.time(); rec["contacts"] = {**A.sync_contacts(acc, base), "when": time.time(), "seconds": round(time.time() - t), "ok": True}
+            log(f"{acc.get('label')}: contatti {rec['contacts']}")
+        rec.pop("error", None)
+    except Exception as e:
+        rec["error"] = f"{type(e).__name__}: {str(e)[:300]}"
+        rec["error_when"] = time.time()
+        log(f"{acc.get('label')}: ERRORE {rec['error']}")
+    st2 = load_status(); st2.setdefault("accounts", {})[acc["id"]] = rec
+    known = {a["id"] for a in __import__("accounts_sync").load()}
+    st2["accounts"] = {k: v for k, v in st2["accounts"].items() if k in known}
+    save_status(st2)
+
+
 def run_once():
     from pyicloud import PyiCloudService
     started = time.time()
-    status = {"started": started, "ok": False}
+    status = {**load_status(), "started": started, "ok": False}
+    status.pop("error", None)
     work = None
     try:
         user = username()
@@ -190,21 +251,40 @@ def run_once():
             shutil.rmtree(work, ignore_errors=True)
         status["finished"] = time.time()
         status["seconds"] = round(status["finished"] - started)
-        try:
-            write_atomic(STATUS, json.dumps(status, ensure_ascii=False, indent=1))
-        except Exception:
-            pass
+        cur = load_status(); status["accounts"] = cur.get("accounts", status.get("accounts", {}))
+        save_status(status)
     return status["ok"]
 
 
 def main():
     os.umask(0)   # come «New Permissions» di Unraid: cartelle 777 e file 666, leggibili dalle share SMB
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import accounts_sync as A
     if os.environ.get("PIM_ONCE") == "1":
-        sys.exit(0 if run_once() else 1)
+        ok = run_once()
+        for acc in A.load():
+            run_account(acc, {"mail", "dav"})
+        sys.exit(0 if ok else 1)
     time.sleep(int(os.environ.get("PIM_START_DELAY", "120")))   # lascia partire prima iclouddr
+    nxt = {"notes": 0}   # attività → prossimo orario
     while True:
-        run_once()
-        time.sleep(INTERVAL)
+        now = time.time()
+        if os.path.exists(RUN_NOW):
+            try: os.remove(RUN_NOW)
+            except OSError: pass
+            nxt = {k: 0 for k in nxt}; nxt["notes"] = 0
+            log("sincronizzazione chiesta da iCloud Dashboard")
+        if now >= nxt.get("notes", 0):
+            run_once(); nxt["notes"] = time.time() + INTERVAL
+        for acc in A.load():
+            todo = set()
+            if acc.get("mail") and time.time() >= nxt.get(acc["id"] + ":mail", 0): todo.add("mail")
+            if (acc.get("calendar") or acc.get("contacts") or acc.get("ics")) and time.time() >= nxt.get(acc["id"] + ":dav", 0): todo.add("dav")
+            if todo:
+                run_account(acc, todo)
+                if "mail" in todo: nxt[acc["id"] + ":mail"] = time.time() + MAIL_INTERVAL
+                if "dav" in todo: nxt[acc["id"] + ":dav"] = time.time() + DAV_INTERVAL
+        time.sleep(30)
 
 
 if __name__ == "__main__":
