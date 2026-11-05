@@ -57,6 +57,7 @@ def write_atomic(path, text):
 def export_notes(api, dest):
     out = os.path.join(dest, "Note")
     stage = tempfile.mkdtemp(prefix="pim-note-", dir=dest)
+    os.chmod(stage, 0o777)   # mkdtemp crea 0700: con i permessi di Unraid la cartella si apre anche dalle share
     n = api.notes
     index, locked, failed = [], [], []
     for s in n.iter_all():
@@ -197,6 +198,7 @@ def run_once():
 
 
 def main():
+    os.umask(0)   # come «New Permissions» di Unraid: cartelle 777 e file 666, leggibili dalle share SMB
     if os.environ.get("PIM_ONCE") == "1":
         sys.exit(0 if run_once() else 1)
     time.sleep(int(os.environ.get("PIM_START_DELAY", "120")))   # lascia partire prima iclouddr
