@@ -28,6 +28,12 @@ Nella cartella montata su `/icloud/pim` (per Simone `/mnt/user/documents/Simone/
 | `Promemoria/<lista>.json` | Tutti i campi di ogni promemoria, con avvisi, tag e ripetizioni |
 | `Promemoria/<lista>.md` | La stessa lista da leggere, con caselle e scadenze |
 
+**Elementi condivisi** (dalla 0.2.6): a ogni giro il PIM chiede ad Apple cosa è condiviso con altri e lo scrive in
+`/config/pim-status.json` (`condivisi`): note (la nota o la sua cartella ha un record `Share`), liste di promemoria (idem) e
+voci di iCloud Drive (`shareID`/`share: FROM_ME`; si scende solo nelle cartelle con `shareCount` > 0, quindi costa pochi
+secondi). Nell'indice delle note la voce ha `"shared": true`, nel JSON della lista `"condivisa": true`. iCloud Dashboard
+li scrive in blu. Ciò che altri condividono con la persona sta nel database condiviso di CloudKit e qui non compare.
+
 La cartella `Note` viene sostituita intera solo a giro riuscito; le liste di promemoria cancellate su iCloud spariscono anche qui.
 Le versioni vecchie restano nella copia sul disco USB Elements, che non cancella mai niente. Lo stato dell'ultimo giro è in
 `/config/pim-status.json`.

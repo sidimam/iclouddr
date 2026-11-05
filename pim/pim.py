@@ -62,7 +62,7 @@ def write_atomic(path, text):
     os.replace(tmp, path)
 
 
-def export_notes(api, dest):
+def export_notes(api, dest, shared=(set(), set())):
     out = os.path.join(dest, "Note")
     stage = tempfile.mkdtemp(prefix="pim-note-", dir=dest)
     os.chmod(stage, 0o777)   # mkdtemp crea 0700: con i permessi di Unraid la cartella si apre anche dalle share
@@ -80,6 +80,8 @@ def export_notes(api, dest):
         title = safe(getattr(s, "title", None))
         entry = {"id": s.id, "title": getattr(s, "title", None), "folder": folder,
                  "modified": str(getattr(s, "modified_at", getattr(s, "modification_date", "")) or "")}
+        if s.id in shared[0] or getattr(s, "folder_id", None) in shared[1]:
+            entry["shared"] = True
         if getattr(s, "is_locked", False):
             locked.append(entry)
             continue
@@ -107,7 +109,8 @@ def export_notes(api, dest):
         os.replace(out, old)
     os.replace(stage, out)
     shutil.rmtree(old, ignore_errors=True)
-    return {"note": len(index), "protette": len(locked), "errori": len(failed)}
+    return {"note": len(index), "protette": len(locked), "errori": len(failed),
+            "condivise": [e["file"] for e in index if e.get("shared")]}
 
 
 def retry(fn, *a, tries=6, **kw):
@@ -139,7 +142,7 @@ def _fmt(ts):
         return str(ts)
 
 
-def export_reminders(api, dest):
+def export_reminders(api, dest, shared=set()):
     out = os.path.join(dest, "Promemoria")
     os.makedirs(out, exist_ok=True)
     r = api.reminders
@@ -161,7 +164,7 @@ def export_reminders(api, dest):
         total += len(rows)
         name = safe(title, "Lista")
         done.add(name)
-        write_atomic(os.path.join(out, name + ".json"), json.dumps({"lista": title, "id": l.id, "promemoria": rows},
+        write_atomic(os.path.join(out, name + ".json"), json.dumps({"lista": title, "id": l.id, "condivisa": l.id in shared, "promemoria": rows},
                                                                    ensure_ascii=False, indent=1))
         md = [f"# {title}", ""]
         for d in sorted(rows, key=lambda x: (bool(x.get("completed")), str(x.get("due_date") or ""))):
@@ -175,7 +178,7 @@ def export_reminders(api, dest):
     for f in os.listdir(out):   # liste cancellate su iCloud
         if os.path.splitext(f)[0] not in done and f.endswith((".json", ".md")):
             os.remove(os.path.join(out, f))
-    return {"liste": len(lists), "promemoria": total}
+    return {"liste": len(lists), "promemoria": total, "condivise": [getattr(l, "title", None) or l.id for l in lists if l.id in shared]}
 
 
 def load_status():
@@ -239,6 +242,25 @@ def run_account(acc, what):
     save_status(st2)
 
 
+def shared_items(api):
+    """Cosa è condiviso (vedi condivisi.py). Un errore qui non ferma l'esportazione: si perde solo il colore."""
+    import condivisi as C
+    out = {}
+    for key, fn in (("note", C.notes), ("liste", C.lists), ("drive", C.drive)):
+        try:
+            v = retry(fn, api)
+            if key == "note":
+                out["_note_ids"], out["_folder_ids"] = v
+            elif key == "liste":
+                out["_list_ids"] = v
+            else:
+                out["drive"] = v
+        except Exception as e:
+            out.setdefault("errori", {})[key] = f"{type(e).__name__}: {str(e)[:200]}"
+            log(f"condivisi ({key}): {out['errori'][key]}")
+    return out
+
+
 def run_once():
     from pyicloud import PyiCloudService
     started = time.time()
@@ -252,9 +274,12 @@ def run_once():
         if api.requires_2fa or getattr(api, "requires_2sa", False):
             raise RuntimeError("la sessione Apple chiede un nuovo 2FA: rinnovala da iCloud Dashboard (#nome auth)")
         os.makedirs(DEST, exist_ok=True)
-        status["note"] = export_notes(api, DEST)
+        sh = shared_items(api)
+        status["note"] = export_notes(api, DEST, (sh.pop("_note_ids", set()), sh.pop("_folder_ids", set())))
         log(f"note esportate: {status['note']}")
-        status["promemoria"] = export_reminders(api, DEST)
+        status["promemoria"] = export_reminders(api, DEST, sh.pop("_list_ids", set()))
+        sh.update(note=status["note"].pop("condivise", []), liste=status["promemoria"].pop("condivise", []), when=time.time())
+        status["condivisi"] = sh
         log(f"promemoria esportati: {status['promemoria']}")
         status["ok"] = True
     except Exception as e:
