@@ -1,0 +1,30 @@
+name: Nuove versioni di iclouddr
+# Ogni lunedì controlla se mandarons/icloud-drive ha pubblicato una versione nuova. Se sì, prova a costruire l'immagine
+# sopra la versione nuova (senza pubblicarla) e apre una issue con l'esito: l'aggiornamento resta una scelta manuale.
+on:
+  schedule: [{ cron: "0 6 * * 1" }]
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          cur=$(grep -oE 'icloud-drive:[0-9.]+' Dockerfile | cut -d: -f2)
+          new=$(curl -s "https://hub.docker.com/v2/repositories/mandarons/icloud-drive/tags?page_size=50" | jq -r '[.results[].name | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(split(".") | map(tonumber)) | last')
+          echo "cur=$cur" >> "$GITHUB_OUTPUT"; echo "new=$new" >> "$GITHUB_OUTPUT"
+          echo "attuale $cur, ultima $new"
+      - if: steps.v.outputs.new != steps.v.outputs.cur
+        id: build
+        continue-on-error: true
+        run: docker build --build-arg BASE=mandarons/icloud-drive:${{ steps.v.outputs.new }} -t prova .
+      - if: steps.v.outputs.new != steps.v.outputs.cur
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          t="iclouddr ${{ steps.v.outputs.new }} disponibile (ora ${{ steps.v.outputs.cur }})"
+          gh issue list --state open --search "$t in:title" --json number --jq length | grep -q '^0$' || exit 0
+          gh issue create --title "$t" --body "Costruzione di prova sopra mandarons/icloud-drive:${{ steps.v.outputs.new }}: **${{ steps.build.outcome }}**. Note della versione: https://github.com/mandarons/icloud-docker/releases. Per aggiornare: cambiare BASE nel Dockerfile, pubblicare un tag, provare su iclouddr-sdimambro e poi sugli altri."
