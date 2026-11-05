@@ -116,8 +116,10 @@ def _fmt(ts):
         return ""
     try:
         if isinstance(ts, (int, float)):
-            return datetime.datetime.fromtimestamp(ts / 1000 if ts > 1e11 else ts).strftime("%d/%m/%Y %H:%M")
-        return str(ts)
+            d = datetime.datetime.fromtimestamp(ts / 1000 if ts > 1e11 else ts)
+        else:
+            d = datetime.datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone()
+        return d.strftime("%d/%m/%Y") if (d.hour, d.minute) == (0, 0) or (d.hour, d.minute) == (1, 0) else d.strftime("%d/%m/%Y %H:%M")
     except Exception:
         return str(ts)
 
@@ -134,7 +136,8 @@ def export_reminders(api, dest):
         rows = []
         for it in items:
             d = it.model_dump(mode="json") if hasattr(it, "model_dump") else dict(it)
-            for k, fn in (("avvisi", r.alarms_for), ("tag", r.tags_for), ("ripetizioni", r.recurrence_rules_for)):
+            # avvisi, tag e ripetizioni costano una richiesta l'uno: solo per i promemoria ancora da fare
+            for k, fn in () if d.get("completed") else (("avvisi", r.alarms_for), ("tag", r.tags_for), ("ripetizioni", r.recurrence_rules_for)):
                 try:
                     d[k] = [x.model_dump(mode="json") if hasattr(x, "model_dump") else str(x) for x in fn(it)]
                 except Exception:
