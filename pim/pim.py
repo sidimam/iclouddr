@@ -212,6 +212,9 @@ def run_account(acc, what):
     st = load_status()
     rec = st.setdefault("accounts", {}).setdefault(acc["id"], {})
     rec.update(label=acc.get("label"), type=acc.get("type"), email=acc.get("email"))
+    # stato «in corso» subito, senza l'errore del giro precedente: la prima copia della posta può durare ore
+    rec["running"] = {"what": sorted(what), "since": time.time()}; rec.pop("error", None)
+    st.setdefault("accounts", {})[acc["id"]] = rec; save_status(st)
     try:
         base = account_dir(acc)
         rec["dir"] = base
@@ -229,6 +232,7 @@ def run_account(acc, what):
         rec["error"] = f"{type(e).__name__}: {str(e)[:300]}"
         rec["error_when"] = time.time()
         log(f"{acc.get('label')}: ERRORE {rec['error']}")
+    rec.pop("running", None)
     st2 = load_status(); st2.setdefault("accounts", {})[acc["id"]] = rec
     known = {a["id"] for a in __import__("accounts_sync").load()}
     st2["accounts"] = {k: v for k, v in st2["accounts"].items() if k in known}
