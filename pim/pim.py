@@ -64,6 +64,9 @@ def write_atomic(path, text):
 
 def export_notes(api, dest, shared=(set(), set())):
     out = os.path.join(dest, "Note")
+    for old in os.listdir(dest):   # esportazioni lasciate a metà da un riavvio del container (0.2.7)
+        if old.startswith("pim-note-") and os.path.isdir(os.path.join(dest, old)):
+            shutil.rmtree(os.path.join(dest, old), ignore_errors=True)
     stage = tempfile.mkdtemp(prefix="pim-note-", dir=dest)
     os.chmod(stage, 0o777)   # mkdtemp crea 0700: con i permessi di Unraid la cartella si apre anche dalle share
     n = api.notes

@@ -35,7 +35,8 @@ secondi). Nell'indice delle note la voce ha `"shared": true`, nel JSON della lis
 li scrive in blu. Sul Drive compaiono anche le cartelle condivise *con* la persona (`share: TO_ME`); le note e le liste
 condivise da altri stanno nel database condiviso di CloudKit e qui non compaiono.
 
-La cartella `Note` viene sostituita intera solo a giro riuscito; le liste di promemoria cancellate su iCloud spariscono anche qui.
+La cartella `Note` viene sostituita intera solo a giro riuscito (dalla 0.2.7 le copie `pim-note-…` lasciate a metà da un riavvio
+del container si cancellano al giro dopo); le liste di promemoria cancellate su iCloud spariscono anche qui.
 Le versioni vecchie restano nella copia sul disco USB Elements, che non cancella mai niente. Lo stato dell'ultimo giro è in
 `/config/pim-status.json`.
 
