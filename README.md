@@ -40,6 +40,15 @@ del container si cancellano al giro dopo); le liste di promemoria cancellate su 
 Le versioni vecchie restano nella copia sul disco USB Elements, che non cancella mai niente. Lo stato dell'ultimo giro è in
 `/config/pim-status.json`.
 
+## Attese massime sulle richieste (0.2.5 e 0.2.8)
+
+`sitecustomize.py` (in `/usr/local/lib/python3.14/site-packages`) mette due limiti alle richieste HTTP di iclouddr, senza
+toccarne il codice: un timeout predefinito per connessione e singola lettura (`ICLOUDDR_HTTP_TIMEOUT`, `30,120`) e, dalla 0.2.8,
+una **scadenza complessiva per l'intestazione della risposta** (`ICLOUDDR_HTTP_DEADLINE`, 300 s): se Apple manda dati a goccia
+(~1 KB/s) il timeout di lettura non scatta mai e il giro di iCloud Drive restava appeso per ore (Sofia, 6/11/2026, visto con
+uno stack dump: `get_node_data` → `ssl.read`). Allo scadere la connessione viene chiusa, la richiesta fallisce e iclouddr riprova.
+Lo scaricamento del contenuto dei file non ha scadenza.
+
 ## Variabili
 
 | Variabile | Default | Effetto |
