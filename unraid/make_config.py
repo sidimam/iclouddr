@@ -10,10 +10,10 @@ Il container monta /icloud/drive, /icloud/photos/personale/all (e /icloud/photos
 import sys
 
 def make(container, person, apple_id, home=False, famiglia=""):
-    ignore = "" if home else '''  # Home è la cartella condivisa di famiglia: la scarica una sola persona (evita copie da 22 GB)
-  ignore:
-    - "Home"
-'''
+    # Documents/Claude: dall'8/11/2026 la cartella di lavoro del Mac di Simone sta in Documenti, che il nuovo Mac sincronizza
+    # con iCloud; è già sul Mac e sul NAS (programs/Claude), riscaricarla da iCloud allungava i giri di ore.
+    # Home è la cartella condivisa di famiglia: la scarica una sola persona (evita copie da 22 GB).
+    ignore = '  ignore:\n    - "Documents/Claude"\n' + ('' if home else '    - "Home"\n')
     libs = "      - PrimarySync\n" + (f"      - {famiglia}\n" if famiglia else "")
     fam_dest = "    SharedLibrary: famiglia\n" if famiglia else ""
     return f'''# {container} — iCloud di {person} (sidimam/iclouddr: mandarons/icloud-drive + modulo PIM). Generato da make_config.py:
