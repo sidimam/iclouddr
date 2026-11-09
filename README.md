@@ -49,11 +49,23 @@ una **scadenza complessiva per l'intestazione della risposta** (`ICLOUDDR_HTTP_D
 uno stack dump: `get_node_data` → `ssl.read`). Allo scadere la connessione viene chiusa, la richiesta fallisce e iclouddr riprova.
 Lo scaricamento del contenuto dei file non ha scadenza.
 
+## Elenco di cosa c'è su iCloud (0.2.9)
+
+Con `remove_obsolete: false` i file cancellati da iCloud restano sul NAS, e guardando la cartella non si capisce più cosa è
+ancora su iCloud. A fine giro mandarons sa già quali file locali corrispondono a elementi presenti su iCloud: `sync_drive`
+li restituisce, `sync_photos` li raccoglie nel set che passa a `_sync_albums_by_configuration`. `sitecustomize.py` avvolge
+queste funzioni quando i moduli vengono importati (il codice di mandarons non cambia) e scrive l'elenco, con i percorsi del
+container, in `/config/elenco-icloud-drive.json.gz` e `/config/elenco-icloud-foto.json.gz` (`{"kind", "when", "files"}`).
+iCloud Dashboard ≥ 3.21 lo usa per l'icona «su iCloud / solo sul NAS». Se una libreria di foto non si è potuta leggere,
+l'elenco delle foto non viene aggiornato perché sarebbe incompleto. Le cartelle in `ignore` non compaiono nell'elenco.
+
 ## Variabili
 
 | Variabile | Default | Effetto |
 |---|---|---|
 | `PIM_ENABLED` | `1` | `0` spegne il modulo: resta l'iclouddr originale |
+| `ICLOUDDR_ELENCO` | `1` | `0` non scrive l'elenco di cosa c'è su iCloud (0.2.9) |
+| `ICLOUDDR_ELENCO_DIR` | `/config` | Dove scrivere l'elenco |
 | `PIM_DEST` | `/icloud/pim` | Dove scrivere |
 | `PIM_INTERVAL` | `21600` | Secondi fra un giro e l'altro (6 ore) |
 | `PIM_START_DELAY` | `120` | Attesa dopo l'avvio, per lasciare partire prima iclouddr |
