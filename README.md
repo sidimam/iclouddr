@@ -7,6 +7,9 @@ calendario e contatti arriveranno nello stesso modulo, con una password per app.
 Tutto in sola lettura: niente viene mai scritto verso Apple. Il progetto completo sta in RepoCasa,
 `docs/progetti/icloud-completo.html`; i container li gestisce [iCloud Dashboard](https://github.com/sidimam/icloud-dashboard).
 
+Documentazione completa nella **[wiki](https://github.com/sidimam/iclouddr/wiki)**: architettura, installazione su Unraid,
+configurazione, dati prodotti, account collegati, aggiornamenti, risoluzione dei problemi e changelog.
+
 ## Come funziona
 
 - L'immagine parte da una versione **fissata per digest** di `mandarons/icloud-drive` (oggi 2.3.0) e ne lascia intatti codice
