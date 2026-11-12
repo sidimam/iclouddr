@@ -5,7 +5,7 @@ Immagine per i container iCloud di casa su Unraid: **[mandarons/icloud-drive](ht
 calendario e contatti arriveranno nello stesso modulo, con una password per app.
 
 Tutto in sola lettura: niente viene mai scritto verso Apple. Il progetto completo sta in RepoCasa,
-`docs/progetti/icloud-completo.html`; i container li gestisce [iCloud Dashboard](https://github.com/sidimam/icloud-dashboard).
+`docs/progetti/icloud-completo.html`; i container li gestisce [iCloud Control](https://github.com/sidimam/icloud-control).
 
 Documentazione completa nella **[wiki](https://github.com/sidimam/iclouddr/wiki)**: architettura, installazione su Unraid,
 configurazione, dati prodotti, account collegati, aggiornamenti, risoluzione dei problemi e changelog.
@@ -18,7 +18,7 @@ configurazione, dati prodotti, account collegati, aggiornamenti, risoluzione dei
 - Il PIM è un **processo separato**: se termina viene riavviato dopo 60 s, e Drive e Foto continuano comunque.
 - **Sessione Apple**: la stessa di iclouddr. A ogni giro il PIM ne fa una copia in `/tmp` (aggiungendo il file `….cookiejar`
   che si aspetta pyicloud) e lavora su quella, così non riscrive mai `/config/session_data`. Nessun secondo 2FA: quando la
-  sessione scade, si rinnova come sempre da iCloud Dashboard (`#nome auth`).
+  sessione scade, si rinnova come sempre da iCloud Control (`#nome auth`).
 
 ## Cosa produce
 
@@ -34,7 +34,7 @@ Nella cartella montata su `/icloud/pim` (per Simone `/mnt/user/documents/Simone/
 **Elementi condivisi** (dalla 0.2.6): a ogni giro il PIM chiede ad Apple cosa è condiviso con altri e lo scrive in
 `/config/pim-status.json` (`condivisi`): note (la nota o la sua cartella ha un record `Share`), liste di promemoria (idem) e
 voci di iCloud Drive (`shareID`/`share: FROM_ME`; si scende solo nelle cartelle con `shareCount` > 0, quindi costa pochi
-secondi). Nell'indice delle note la voce ha `"shared": true`, nel JSON della lista `"condivisa": true`. iCloud Dashboard
+secondi). Nell'indice delle note la voce ha `"shared": true`, nel JSON della lista `"condivisa": true`. iCloud Control
 li scrive in blu. Sul Drive compaiono anche le cartelle condivise *con* la persona (`share: TO_ME`); le note e le liste
 condivise da altri stanno nel database condiviso di CloudKit e qui non compaiono.
 
@@ -59,7 +59,7 @@ ancora su iCloud. A fine giro mandarons sa già quali file locali corrispondono 
 li restituisce, `sync_photos` li raccoglie nel set che passa a `_sync_albums_by_configuration`. `sitecustomize.py` avvolge
 queste funzioni quando i moduli vengono importati (il codice di mandarons non cambia) e scrive l'elenco, con i percorsi del
 container, in `/config/elenco-icloud-drive.json.gz` e `/config/elenco-icloud-foto.json.gz` (`{"kind", "when", "files"}`).
-iCloud Dashboard ≥ 3.21 lo usa per l'icona «su iCloud / solo sul NAS». Se una libreria di foto non si è potuta leggere,
+iCloud Control ≥ 3.21 lo usa per l'icona «su iCloud / solo sul NAS». Se una libreria di foto non si è potuta leggere,
 l'elenco delle foto non viene aggiornato perché sarebbe incompleto. Le cartelle in `ignore` non compaiono nell'elenco.
 
 ## Variabili

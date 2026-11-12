@@ -7,9 +7,9 @@ Gira dentro il container iclouddr accanto al programma originale (mandarons/iclo
 - Note: CloudKit via pyicloud ≥ 2026.10 → <dest>/Note/<cartella>/<titolo>.html con le immagini e gli allegati accanto.
   Le note protette da password non si possono leggere e vengono solo elencate.
 - Promemoria: CloudKit via pyicloud → <dest>/Promemoria/<lista>.json (tutti i campi) e <lista>.md (da leggere).
-- Stato dell'ultimo giro in /config/pim-status.json (lo legge iCloud Dashboard).
+- Stato dell'ultimo giro in /config/pim-status.json (lo legge iCloud Control).
 - Account (dalla 0.2): posta, calendario e contatti di iCloud, Gmail, Outlook o altro IMAP, da /config/pim-accounts.json
-  (lo scrive iCloud Dashboard), ognuno in <persona>/<etichetta>/ — vedi accounts_sync.py. Serve il mount /icloud/persona
+  (lo scrive iCloud Control), ognuno in <persona>/<etichetta>/ — vedi accounts_sync.py. Serve il mount /icloud/persona
   (la cartella della persona, es. /mnt/user/documents/Simone).
 Variabili: PIM_DEST (default /icloud/pim), PIM_INTERVAL (note e promemoria, default 21600 s), PIM_MAIL_INTERVAL (900),
 PIM_DAV_INTERVAL (calendari e contatti, 3600), PIM_ONCE=1 per un solo giro. Il file /config/pim-run-now fa ripartire subito tutto.
@@ -202,7 +202,7 @@ FOLDERS = {"icloud": "iCloud", "gmail": "Gmail", "outlook": "Outlook"}
 
 
 def account_dir(acc):
-    """Cartella dell'account: quella scelta da iCloud Dashboard (campo folder), altrimenti il nome del servizio
+    """Cartella dell'account: quella scelta da iCloud Control (campo folder), altrimenti il nome del servizio
     (iCloud, Gmail, Outlook), altrimenti l'etichetta. L'account iCloud scrive accanto a Note e Promemoria."""
     label = safe(acc.get("folder") or FOLDERS.get(acc.get("type")) or acc.get("label") or "Account", "Account")
     if os.path.isdir(PERSON):
@@ -275,7 +275,7 @@ def run_once():
         work = session_copy(user)
         api = PyiCloudService(user, password=None, cookie_directory=work)
         if api.requires_2fa or getattr(api, "requires_2sa", False):
-            raise RuntimeError("la sessione Apple chiede un nuovo 2FA: rinnovala da iCloud Dashboard (#nome auth)")
+            raise RuntimeError("la sessione Apple chiede un nuovo 2FA: rinnovala da iCloud Control (#nome auth)")
         os.makedirs(DEST, exist_ok=True)
         sh = shared_items(api)
         status["note"] = export_notes(api, DEST, (sh.pop("_note_ids", set()), sh.pop("_folder_ids", set())))
@@ -316,7 +316,7 @@ def main():
             try: os.remove(RUN_NOW)
             except OSError: pass
             nxt = {k: 0 for k in nxt}; nxt["notes"] = 0
-            log("sincronizzazione chiesta da iCloud Dashboard")
+            log("sincronizzazione chiesta da iCloud Control")
         if now >= nxt.get("notes", 0):
             run_once(); nxt["notes"] = time.time() + INTERVAL
         for acc in A.load():

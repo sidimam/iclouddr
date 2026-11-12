@@ -57,7 +57,7 @@ try:
 except Exception:
     pass
 
-# 0.2.9: elenco di cosa c'è su iCloud, per l'icona «su iCloud / solo sul NAS» di iCloud Dashboard. A fine giro iclouddr sa già
+# 0.2.9: elenco di cosa c'è su iCloud, per l'icona «su iCloud / solo sul NAS» di iCloud Control. A fine giro iclouddr sa già
 # quali file locali corrispondono a elementi presenti su iCloud: sync_drive li restituisce, sync_photos li raccoglie nel set
 # «files» che passa a _sync_albums_by_configuration. Qui si avvolgono le due funzioni quando il modulo viene importato (il
 # codice di mandarons non cambia) e si scrive l'elenco in /config/elenco-icloud-{drive,foto}.json.gz. Con remove_obsolete

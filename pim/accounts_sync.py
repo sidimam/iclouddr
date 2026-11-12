@@ -1,6 +1,6 @@
 """Account di posta, calendario e contatti di una persona (iCloud, Gmail, Outlook, altro IMAP), in sola lettura.
 
-Gli account stanno in /config/pim-accounts.json (permessi 600), scritto da iCloud Dashboard:
+Gli account stanno in /config/pim-accounts.json (permessi 600), scritto da iCloud Control:
   {"accounts": [{"id": "icloud", "type": "icloud", "label": "iCloud", "email": "…", "password": "<password per app>",
                  "mail": true, "calendar": true, "contacts": true, "ics": ["https://…"], "exclude": ["Junk"]}]}
 Ogni account scrive in <persona>/<label>/: Posta/ (Maildir, niente viene mai cancellato), Calendario/ (un .ics per evento,

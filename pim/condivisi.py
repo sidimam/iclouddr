@@ -5,7 +5,7 @@ Apple lo dice nei metadati dei record CloudKit e nelle voci del Drive:
 - promemoria: il record della lista ha `share` (es. le liste Regali e Famiglia);
 - Drive: la voce ha `shareID` e `share` (FROM_ME, o TO_ME se un altro la condivide con la persona); ogni cartella dice in `shareCount` quanti elementi condivisi ci sono
   sotto di lei, così si scende solo dove serve. Il contenuto di una cartella condivisa è condiviso con lei.
-Il risultato va in pim-status.json («condivisi»), che iCloud Dashboard legge per scrivere in blu questi elementi.
+Il risultato va in pim-status.json («condivisi»), che iCloud Control legge per scrivere in blu questi elementi.
 Le liste e le note che altri condividono con la persona invece stanno nel database condiviso di CloudKit e qui non compaiono.
 """
 from pyicloud.common.cloudkit import CKRecord, CKZoneChangesZoneReq
