@@ -12,4 +12,9 @@ if [ "${PIM_ENABLED:-1}" != "0" ]; then
     done
   ) &
 fi
+# 0.2.11: l'avvio originale fa «chown -R abc:abc /icloud» se /icloud (la cartella del container, non un mount) non è già di
+# abc. In un container appena ricreato è di root, quindi il chown scendeva in tutti i mount (foto, documenti, posta):
+# cambiava il ctime di ~190.000 file e il watcher di Immich li rimetteva tutti in coda come nuovi. Qui si sistema solo
+# la cartella, non ricorsivo: il controllo dell'avvio originale passa e i file restano come sono.
+mkdir -p /icloud && chown "${PUID:-911}:${PGID:-911}" /icloud
 exec "$@"

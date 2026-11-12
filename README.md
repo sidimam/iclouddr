@@ -62,6 +62,13 @@ container, in `/config/elenco-icloud-drive.json.gz` e `/config/elenco-icloud-fot
 iCloud Control ≥ 3.21 lo usa per l'icona «su iCloud / solo sul NAS». Se una libreria di foto non si è potuta leggere,
 l'elenco delle foto non viene aggiornato perché sarebbe incompleto. Le cartelle in `ignore` non compaiono nell'elenco.
 
+## Avvio senza chown dei mount (0.2.11)
+
+L'avvio originale fa `chown -R abc:abc /icloud` quando la cartella `/icloud` del container non è di abc, cioè ogni volta
+che il container viene ricreato. Il chown scendeva in tutti i mount (foto, documenti, posta) e cambiava il ctime di ogni
+file: il watcher di Immich li rimetteva in coda tutti come nuovi (il 12/11/2026 130.000 lavori falliti con «duplicate key»).
+Dalla 0.2.11 `pim-entrypoint.sh` assegna prima solo la cartella `/icloud` a `PUID:PGID`, non ricorsivo.
+
 ## Variabili
 
 | Variabile | Default | Effetto |
