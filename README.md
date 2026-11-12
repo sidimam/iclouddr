@@ -70,7 +70,10 @@ l'elenco delle foto non viene aggiornato perché sarebbe incompleto. Le cartelle
 | `ICLOUDDR_ELENCO` | `1` | `0` non scrive l'elenco di cosa c'è su iCloud (0.2.9) |
 | `ICLOUDDR_ELENCO_DIR` | `/config` | Dove scrivere l'elenco |
 | `PIM_DEST` | `/icloud/pim` | Dove scrivere |
-| `PIM_INTERVAL` | `21600` | Secondi fra un giro e l'altro (6 ore) |
+| `PIM_INTERVAL` | `86400` | Secondi fra un giro e l'altro di note e promemoria (24 ore dalla 0.2.10; prima 6 ore) |
+| `PIM_MAIL_INTERVAL` | `900` | Posta degli account collegati (15 minuti) |
+| `PIM_DAV_INTERVAL` | `3600` | Calendari (1 ora) |
+| `PIM_CONTACTS_INTERVAL` | `86400` | Contatti (24 ore, separati dai calendari dalla 0.2.10) |
 | `PIM_START_DELAY` | `120` | Attesa dopo l'avvio, per lasciare partire prima iclouddr |
 
 ## Aggiornamenti di mandarons/icloud-drive

@@ -11,8 +11,8 @@ Gira dentro il container iclouddr accanto al programma originale (mandarons/iclo
 - Account (dalla 0.2): posta, calendario e contatti di iCloud, Gmail, Outlook o altro IMAP, da /config/pim-accounts.json
   (lo scrive iCloud Control), ognuno in <persona>/<etichetta>/ — vedi accounts_sync.py. Serve il mount /icloud/persona
   (la cartella della persona, es. /mnt/user/documents/Simone).
-Variabili: PIM_DEST (default /icloud/pim), PIM_INTERVAL (note e promemoria, default 21600 s), PIM_MAIL_INTERVAL (900),
-PIM_DAV_INTERVAL (calendari e contatti, 3600), PIM_ONCE=1 per un solo giro. Il file /config/pim-run-now fa ripartire subito tutto.
+Variabili: PIM_DEST (default /icloud/pim), PIM_INTERVAL (note e promemoria, default 86400 s = 24 ore dalla 0.2.10), PIM_MAIL_INTERVAL (900),
+PIM_DAV_INTERVAL (calendari, 3600), PIM_CONTACTS_INTERVAL (contatti, 86400, dalla 0.2.10), PIM_ONCE=1 per un solo giro. Il file /config/pim-run-now fa ripartire subito tutto.
 """
 import datetime, json, os, re, shutil, sys, tempfile, time, traceback
 
@@ -20,9 +20,10 @@ SRC_SESSION = os.environ.get("PIM_SESSION_DIR", "/config/session_data")
 CONFIG = os.environ.get("ENV_CONFIG_FILE_PATH", "/config/config.yaml")
 DEST = os.environ.get("PIM_DEST", "/icloud/pim")
 STATUS = os.environ.get("PIM_STATUS", "/config/pim-status.json")
-INTERVAL = int(os.environ.get("PIM_INTERVAL", "21600"))
+INTERVAL = int(os.environ.get("PIM_INTERVAL", "86400"))
 MAIL_INTERVAL = int(os.environ.get("PIM_MAIL_INTERVAL", "900"))
-DAV_INTERVAL = int(os.environ.get("PIM_DAV_INTERVAL", "3600"))
+DAV_INTERVAL = int(os.environ.get("PIM_DAV_INTERVAL", "3600"))   # calendari
+CARD_INTERVAL = int(os.environ.get("PIM_CONTACTS_INTERVAL", "86400"))   # contatti (0.2.10: separati dai calendari)
 PERSON = os.environ.get("PIM_PERSON", "/icloud/persona")
 RUN_NOW = os.environ.get("PIM_RUN_NOW", "/config/pim-run-now")
 
@@ -213,7 +214,7 @@ def account_dir(acc):
 
 
 def run_account(acc, what):
-    """what: insieme di "mail", "dav". Aggiorna la voce dell'account in pim-status.json."""
+    """what: insieme di "mail", "cal", "card" ("dav" = calendari e contatti). Aggiorna la voce dell'account in pim-status.json."""
     import accounts_sync as A
     st = load_status()
     rec = st.setdefault("accounts", {}).setdefault(acc["id"], {})
@@ -227,10 +228,10 @@ def run_account(acc, what):
         if "mail" in what and acc.get("mail"):
             t = time.time(); rec["mail"] = {**A.sync_mail(acc, base, log), "when": time.time(), "seconds": round(time.time() - t), "ok": True}
             log(f"{acc.get('label')}: posta {rec['mail']}")
-        if "dav" in what and (acc.get("calendar") or acc.get("ics")):
+        if what & {"dav", "cal"} and (acc.get("calendar") or acc.get("ics")):
             t = time.time(); rec["calendar"] = {**A.sync_calendar(acc, base), "when": time.time(), "seconds": round(time.time() - t), "ok": True}
             log(f"{acc.get('label')}: calendario {rec['calendar']}")
-        if "dav" in what and acc.get("contacts"):
+        if what & {"dav", "card"} and acc.get("contacts"):
             t = time.time(); rec["contacts"] = {**A.sync_contacts(acc, base), "when": time.time(), "seconds": round(time.time() - t), "ok": True}
             log(f"{acc.get('label')}: contatti {rec['contacts']}")
         rec.pop("error", None)
@@ -322,11 +323,13 @@ def main():
         for acc in A.load():
             todo = set()
             if acc.get("mail") and time.time() >= nxt.get(acc["id"] + ":mail", 0): todo.add("mail")
-            if (acc.get("calendar") or acc.get("contacts") or acc.get("ics")) and time.time() >= nxt.get(acc["id"] + ":dav", 0): todo.add("dav")
+            if (acc.get("calendar") or acc.get("ics")) and time.time() >= nxt.get(acc["id"] + ":cal", 0): todo.add("cal")
+            if acc.get("contacts") and time.time() >= nxt.get(acc["id"] + ":card", 0): todo.add("card")
             if todo:
                 run_account(acc, todo)
                 if "mail" in todo: nxt[acc["id"] + ":mail"] = time.time() + MAIL_INTERVAL
-                if "dav" in todo: nxt[acc["id"] + ":dav"] = time.time() + DAV_INTERVAL
+                if "cal" in todo: nxt[acc["id"] + ":cal"] = time.time() + DAV_INTERVAL
+                if "card" in todo: nxt[acc["id"] + ":card"] = time.time() + CARD_INTERVAL
         time.sleep(30)
 
 
