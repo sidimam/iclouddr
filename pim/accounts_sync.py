@@ -19,7 +19,9 @@ VDIR = "/opt/pim/venv/bin/vdirsyncer"
 
 PRESETS = {
     "icloud": {"imap": ("imap.mail.me.com", 993), "caldav": "https://caldav.icloud.com/", "carddav": "https://contacts.icloud.com/"},
-    "gmail": {"imap": ("imap.gmail.com", 993)},
+    # Contatti Gmail: CardDAV di Google con la password per app (provato il 23/11/2026: 207 e 3.672 contatti);
+    # {email} viene sostituito con l'indirizzo dell'account.
+    "gmail": {"imap": ("imap.gmail.com", 993), "carddav": "https://www.googleapis.com/carddav/v1/principals/{email}/lists/"},
     "outlook": {"imap": ("outlook.office365.com", 993)},   # Outlook.com dal 2024 vuole OAuth: senza, l'accesso viene rifiutato
 }
 
@@ -186,6 +188,9 @@ def sync_calendar(acc, base):
 
 def sync_contacts(acc, base):
     url = acc.get("carddav") or PRESETS.get(acc["type"], {}).get("carddav")
-    if not (url and acc.get("password")):
-        return {}
-    return {"contatti": _vdir(acc, "card", url, os.path.join(base, "Contatti"), ".vcf")}
+    if not url:
+        # Prima della 0.2.12 qui tornava {} e il giro risultava «ok» senza copiare nulla (account «in attesa» per sempre).
+        raise RuntimeError(f"contatti non disponibili per gli account {acc['type']}: manca l'indirizzo CardDAV")
+    if not acc.get("password"):
+        raise RuntimeError("manca la password per app")
+    return {"contatti": _vdir(acc, "card", url.format(email=acc["email"]), os.path.join(base, "Contatti"), ".vcf")}

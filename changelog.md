@@ -4,6 +4,9 @@ Una voce per ogni modifica, la più recente in alto, raggruppate per giorno. Ser
 senza rileggere le conversazioni: ogni commit aggiunge qui la sua voce (cosa, perché, dove, come è stato provato).
 Le voci fino al 16/11/2026 sono ricostruite dalla storia git (messaggio del commit e hash).
 
+## 2026-11-23
+- **0.2.12: contatti Gmail.** Un account Gmail con solo «Contatti» restava «in attesa» per sempre: `PRESETS` non aveva un indirizzo CardDAV per Gmail e `sync_contacts` tornava `{}`, che il giro registrava come «ok» senza copiare nulla (cartella `<persona>/Gmail` mai creata). Ora Gmail usa il CardDAV di Google `https://www.googleapis.com/carddav/v1/principals/{email}/lists/` con la stessa password per app di IMAP, e un account senza indirizzo CardDAV (Outlook, IMAP generico) dà un errore chiaro invece di un falso «ok». Provato dentro `iclouddr-sdimambro` con il modulo corretto e cartelle temporanee: PROPFIND 207, vdirsyncer 3.672 contatti; Outlook → errore «manca l'indirizzo CardDAV». File: `pim/accounts_sync.py`, `README.md`.
+
 ## 2026-11-16
 - Nuovo `changelog.md`: storia ricostruita dai commit (strumento `tools/changelog_da_git.sh` della cartella Claude); da qui in poi ogni commit aggiunge la sua voce in cima.
 

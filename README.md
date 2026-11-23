@@ -94,3 +94,7 @@ log, poi sugli altri container. Per tornare indietro basta rimettere il tag prec
 
 Il modulo PIM e gli script di questo repository sono BSD-3-Clause come l'immagine di partenza
 (© 2021 Mandar Patil per mandarons/icloud-docker).
+
+## Contatti Gmail (0.2.12)
+
+I contatti di un account Gmail arrivano dal CardDAV di Google (`https://www.googleapis.com/carddav/v1/principals/<email>/lists/`) con la stessa **password per app** usata per IMAP. Fino alla 0.2.11 un account Gmail con solo «Contatti» non copiava nulla e restava «in attesa». Un account senza indirizzo CardDAV (Outlook, IMAP generico) ora dà errore se ha «Contatti» attivo.
