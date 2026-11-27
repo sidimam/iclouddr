@@ -222,23 +222,42 @@ def run_account(acc, what):
     # stato «in corso» subito, senza l'errore del giro precedente: la prima copia della posta può durare ore
     rec["running"] = {"what": sorted(what), "since": time.time()}; rec.pop("error", None)
     st.setdefault("accounts", {})[acc["id"]] = rec; save_status(st)
+    # 0.2.13: ogni servizio ha il suo errore («errors»: {"mail": "…"}): prima un errore della posta fermava anche calendario e
+    # contatti dello stesso giro (Simone, 24-27/11/2026: contatti fermi 3 giorni per una cartella di posta spostata).
+    # «error» resta (tutti gli errori del giro uniti) per le versioni di iCloud Control che non leggono «errors».
+    errs = {k: v for k, v in (rec.get("errors") or {}).items()}
+    def step(key, label, fn):
+        t = time.time()
+        try:
+            rec[key] = {**fn(), "when": time.time(), "seconds": round(time.time() - t), "ok": True}
+            errs.pop(key, None)
+            log(f"{acc.get('label')}: {label} {rec[key]}")
+        except Exception as e:
+            errs[key] = f"{type(e).__name__}: {str(e)[:300]}"
+            log(f"{acc.get('label')}: ERRORE {label}: {errs[key]}")
     try:
         base = account_dir(acc)
         rec["dir"] = base
         if "mail" in what and acc.get("mail"):
-            t = time.time(); rec["mail"] = {**A.sync_mail(acc, base, log), "when": time.time(), "seconds": round(time.time() - t), "ok": True}
-            log(f"{acc.get('label')}: posta {rec['mail']}")
+            step("mail", "posta", lambda: A.sync_mail(acc, base, log))
         if what & {"dav", "cal"} and (acc.get("calendar") or acc.get("ics")):
-            t = time.time(); rec["calendar"] = {**A.sync_calendar(acc, base), "when": time.time(), "seconds": round(time.time() - t), "ok": True}
-            log(f"{acc.get('label')}: calendario {rec['calendar']}")
+            step("calendar", "calendario", lambda: A.sync_calendar(acc, base))
         if what & {"dav", "card"} and acc.get("contacts"):
-            t = time.time(); rec["contacts"] = {**A.sync_contacts(acc, base), "when": time.time(), "seconds": round(time.time() - t), "ok": True}
-            log(f"{acc.get('label')}: contatti {rec['contacts']}")
-        rec.pop("error", None)
+            step("contacts", "contatti", lambda: A.sync_contacts(acc, base))
+        for k in ("mail", "calendar", "contacts"):   # servizio spento nel frattempo: niente errore vecchio
+            if k in errs and not (acc.get(k) or (k == "calendar" and acc.get("ics"))):
+                errs.pop(k)
     except Exception as e:
-        rec["error"] = f"{type(e).__name__}: {str(e)[:300]}"
+        errs["account"] = f"{type(e).__name__}: {str(e)[:300]}"
+        log(f"{acc.get('label')}: ERRORE {errs['account']}")
+    else:
+        errs.pop("account", None)
+    rec["errors"] = errs
+    if errs:
+        rec["error"] = " · ".join(errs.values())[:600]
         rec["error_when"] = time.time()
-        log(f"{acc.get('label')}: ERRORE {rec['error']}")
+    else:
+        rec.pop("error", None); rec.pop("error_when", None)
     rec.pop("running", None)
     st2 = load_status(); st2.setdefault("accounts", {})[acc["id"]] = rec
     known = {a["id"] for a in __import__("accounts_sync").load()}

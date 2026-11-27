@@ -46,6 +46,67 @@ def _run(cmd, timeout, **kw):
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 
 
+def _mutf7(s):
+    """Nome di cartella IMAP in UTF-7 modificato (RFC 3501 §5.1.3) → testo normale (es. «Ricevute &AOg-» → «Ricevute è»)."""
+    import base64
+    out, i = [], 0
+    while i < len(s):
+        if s[i] == "&":
+            j = s.index("-", i)
+            if j == i + 1:
+                out.append("&")
+            else:
+                b = s[i + 1:j].replace(",", "/")
+                out.append(base64.b64decode(b + "=" * (-len(b) % 4)).decode("utf-16-be"))
+            i = j + 1
+        else:
+            out.append(s[i]); i += 1
+    return "".join(out)
+
+
+def _imap_folders(host, port, user, pw):
+    """Cartelle che il server ha ADESSO, con «/» come separatore (come le vede mbsync). None se l'elenco non riesce.
+    0.2.13: mbsync con Patterns * prende anche le cartelle che esistono solo nella copia locale; se una cartella viene
+    spostata o cancellata su iCloud (Simone, 24/11/2026: «Viaggi/2027/Non confermato» spostata sotto «Malesia»), con
+    Remove None mbsync si ferma con «far side box … cannot be opened anymore» a ogni giro e la posta non si aggiorna più.
+    Con l'elenco esplicito delle cartelle del server la vecchia copia locale resta com'è (archivio) e il giro continua."""
+    m = imaplib.IMAP4_SSL(host, port, timeout=60)
+    try:
+        m.login(user, pw)
+        typ, data = m.list()
+        if typ != "OK":
+            return None
+        out, i = [], 0
+        while i < len(data or []):
+            raw = data[i]
+            if isinstance(raw, tuple):   # nome come letterale IMAP: (intestazione, nome)
+                head, name = raw[0].decode("utf-8", "replace"), raw[1].decode("utf-8", "replace")
+            elif raw is None:
+                i += 1; continue
+            else:
+                head = raw.decode("utf-8", "replace"); name = None
+            mm = re.match(r'\((?P<f>[^)]*)\)\s+(?P<d>"(?:[^"\\]|\\.)*"|NIL)\s*(?P<n>.*)$', head)
+            if not mm:
+                i += 1; continue
+            if name is None:
+                n = mm.group("n").strip()
+                name = re.sub(r'\\(.)', r'\1', n[1:-1]) if n.startswith('"') and n.endswith('"') else n
+            delim = mm.group("d").strip('"').replace("\\\\", "\\") if mm.group("d") != "NIL" else ""
+            name = _mutf7(name)
+            if delim and delim != "/":
+                name = name.replace(delim, "/")
+            out.append(name)
+            i += 1
+        return out or None
+    except Exception:
+        return None
+    finally:
+        try:
+            m.logout()
+        except Exception:
+            pass
+
+
 def _gmail_all_mail(host, port, user, pw):
     """Nome (localizzato) della cartella Gmail con il flag \\All, es. «[Gmail]/Tutti i messaggi»."""
     m = imaplib.IMAP4_SSL(host, port, timeout=60)
@@ -79,7 +140,13 @@ def sync_mail(acc, base, log):
             if not allm:
                 raise RuntimeError("cartella «Tutti i messaggi» di Gmail non trovata (IMAP attivo?)")
             patterns = f'"{allm}"'
-        excl = " ".join(f'!"{x}"' for x in acc.get("exclude", []) if x)
+        else:
+            far = _imap_folders(host, port, acc["email"], acc["password"])
+            if far:   # solo le cartelle che il server ha adesso (0.2.13); se l'elenco non riesce resta «*»
+                # una riga «Patterns» per cartella: mbsync legge righe di lunghezza limitata (102 cartelle su una riga
+                # spezzavano la configurazione) e somma le righe Patterns nell'ordine in cui le trova
+                patterns = "\nPatterns ".join('"' + x.replace("\\", "\\\\").replace('"', '\\"') + '"' for x in far)
+        excl = "".join(f'Patterns !"{x}"\n' for x in acc.get("exclude", []) if x)   # esclusioni dopo: vince l'ultima riga che corrisponde
         state = os.path.join(STATE, acc["id"], "mbsync")
         os.makedirs(state, exist_ok=True)
         cfg = os.path.join(tmp, "mbsyncrc")
@@ -104,8 +171,8 @@ SubFolders Verbatim
 Channel c
 Far :remote:
 Near :local:
-Patterns {patterns} {excl}
-Create Near
+Patterns {patterns}
+{excl}Create Near
 Remove None
 Expunge None
 Sync Pull

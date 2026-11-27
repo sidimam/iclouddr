@@ -98,3 +98,12 @@ Il modulo PIM e gli script di questo repository sono BSD-3-Clause come l'immagin
 ## Contatti Gmail (0.2.12)
 
 I contatti di un account Gmail arrivano dal CardDAV di Google (`https://www.googleapis.com/carddav/v1/principals/<email>/lists/`) con la stessa **password per app** usata per IMAP. Fino alla 0.2.11 un account Gmail con solo «Contatti» non copiava nulla e restava «in attesa». Un account senza indirizzo CardDAV (Outlook, IMAP generico) ora dà errore se ha «Contatti» attivo.
+
+## Cartelle di posta spostate o cancellate (0.2.13)
+
+Dalla 0.2.13 la posta copia solo le cartelle che il server ha **adesso** (elenco IMAP letto a ogni giro, una riga `Patterns`
+per cartella). Una cartella spostata o cancellata su iCloud resta sul NAS così com'era, come archivio, e non blocca più il giro:
+prima mbsync si fermava a ogni giro con «far side box … cannot be opened anymore» (Simone, dal 24/11/2026, dopo aver spostato
+«Viaggi/2027/Non confermato» sotto «Malesia»). Ogni servizio di un account ha anche il suo errore (`errors` in
+`pim-status.json`): un errore della posta non ferma più calendario e contatti.
+
